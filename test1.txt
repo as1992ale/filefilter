@@ -1,0 +1,6 @@
+123
+Hello World
+3.14
+42
+Test string
+-5.67
