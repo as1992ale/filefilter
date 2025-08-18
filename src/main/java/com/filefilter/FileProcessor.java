@@ -1,9 +1,10 @@
 package com.filefilter;
 
+import com.filefilter.exceptions.FileProcessingException;
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
-import java.util.regex.*;
+import java.util.regex.Pattern;
 
 public class FileProcessor {
     private final String outputPath;
@@ -11,16 +12,19 @@ public class FileProcessor {
     private final boolean appendMode;
     private final DataStatistics statistics = new DataStatistics();
 
-    // Regex patterns for data type detection
     private static final Pattern INTEGER_PATTERN = Pattern.compile("^-?\\d+$");
     private static final Pattern FLOAT_PATTERN = Pattern.compile("^-?\\d+\\.\\d+([Ee][+-]?\\d+)?$");
 
-    public FileProcessor(String outputPath, String filePrefix, boolean appendMode) {
+    public FileProcessor(String outputPath, String filePrefix, boolean appendMode)
+            throws FileProcessingException {
         this.outputPath = outputPath;
         this.filePrefix = filePrefix;
         this.appendMode = appendMode;
 
-        // Create output directory if it doesn't exist
+        createOutputDirectory();
+    }
+
+    private void createOutputDirectory() throws FileProcessingException {
         try {
             Files.createDirectories(Paths.get(outputPath));
         } catch (IOException e) {
@@ -33,38 +37,36 @@ public class FileProcessor {
 
         try {
             for (String inputFile : inputFiles) {
-                processFile(inputFile, writers);
+                processSingleFile(inputFile, writers);
             }
         } finally {
-            // Close all writers
-            writers.values().forEach(writer -> {
-                try {
-                    if (writer != null) writer.close();
-                } catch (IOException e) {
-                    System.err.println("Error closing file writer: " + e.getMessage());
-                }
-            });
+            closeAllWriters(writers);
         }
     }
 
-    private void processFile(String inputFile, Map<DataType, BufferedWriter> writers)
+    private void processSingleFile(String inputFile, Map<DataType, BufferedWriter> writers)
             throws FileProcessingException {
         try (BufferedReader reader = new BufferedReader(new FileReader(inputFile))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                if (line.trim().isEmpty()) continue;
-
-                DataType type = determineDataType(line);
-                statistics.updateStats(type, line);
-
-                BufferedWriter writer = writers.computeIfAbsent(type, this::createWriter);
-                if (writer != null) {
-                    writer.write(line);
-                    writer.newLine();
-                }
+                processLine(line, writers);
             }
         } catch (IOException e) {
             throw new FileProcessingException("Error processing file: " + inputFile, e);
+        }
+    }
+
+    private void processLine(String line, Map<DataType, BufferedWriter> writers)
+            throws FileProcessingException {
+        if (line.trim().isEmpty()) return;
+
+        DataType type = determineDataType(line);
+        statistics.updateStats(type, line);
+
+        try {
+            writeToFile(type, line, writers);
+        } catch (IOException e) {
+            throw new FileProcessingException("Error writing to output file", e);
         }
     }
 
@@ -77,6 +79,15 @@ public class FileProcessor {
         return DataType.STRING;
     }
 
+    private void writeToFile(DataType type, String line, Map<DataType, BufferedWriter> writers)
+            throws IOException {
+        BufferedWriter writer = writers.computeIfAbsent(type, this::createWriter);
+        if (writer != null) {
+            writer.write(line);
+            writer.newLine();
+        }
+    }
+
     private BufferedWriter createWriter(DataType type) {
         try {
             String filename = outputPath + File.separator + filePrefix + type.getFilename();
@@ -85,6 +96,16 @@ public class FileProcessor {
             System.err.println("Failed to create writer for " + type + ": " + e.getMessage());
             return null;
         }
+    }
+
+    private void closeAllWriters(Map<DataType, BufferedWriter> writers) {
+        writers.values().forEach(writer -> {
+            try {
+                if (writer != null) writer.close();
+            } catch (IOException e) {
+                System.err.println("Error closing file writer: " + e.getMessage());
+            }
+        });
     }
 
     public DataStatistics getStatistics() {

@@ -1,18 +1,18 @@
 package com.filefilter;
 
-public class DataType {
+public enum DataType {
     INTEGER("integers.txt"),
     FLOAT("floats.txt"),
     STRING("strings.tst");
 
-    private final String fileName;
+    private final String filename;
 
-    DataType(String fileName) {
-        this.fileName = fileName;
+    DataType(String filename) {
+        this.filename = filename;
 
     }
 
-    public String getFileName() {
-        return fileName;
+    public String getFilename() {
+        return filename;
     }
 }

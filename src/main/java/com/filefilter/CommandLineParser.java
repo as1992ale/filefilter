@@ -1,5 +1,6 @@
 package com.filefilter;
 
+import com.filefilter.exceptions.InvalidInputException;
 import java.util.ArrayList;
 import java.util.List;
 
