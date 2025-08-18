@@ -3,7 +3,7 @@ package com.filefilter;
 public enum DataType {
     INTEGER("integers.txt"),
     FLOAT("floats.txt"),
-    STRING("strings.tst");
+    STRING("strings.txt");
 
     private final String filename;
 
